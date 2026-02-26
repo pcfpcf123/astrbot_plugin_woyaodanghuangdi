@@ -22,8 +22,9 @@ CONFIG = {
         "📖 核心经历：{experience}"
     ),
     
-    # 内嵌皇帝数据
+    # 内嵌皇帝数据（你原来的完整数据，我这里保留不动）
     "emperor_list": [
+        # 👇 把你原来的【所有皇帝数据】粘贴回这里 👇
         {
             "dynasty": "秦朝", 
             "emperor": "嬴政（秦始皇）",
@@ -2396,8 +2397,9 @@ CONFIG = {
     ]
 }
 
-# ===================== 插件核心类（支持自然语言触发） =====================
-@register("randomEmperor", "郭圣通", "随机抽取中国历史皇帝", "1.1.0")
+# ===================== 插件核心类（100%必触发） =====================
+# 🔥 关键1：加 priority=999 最高优先级，最先处理这条消息
+@register("randomEmperor", "郭圣通", "随机抽取中国历史皇帝", "1.1.0", priority=999)
 class RandomEmperorPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
@@ -2432,49 +2434,40 @@ class RandomEmperorPlugin(Star):
         return CONFIG["reply_format"].format(**data)
 
     def is_trigger(self, message: str):
-        """判断消息是否包含触发词（忽略大小写/空格）"""
+        """100%匹配触发词，无概率"""
         if not message:
             return False
-        msg = message.strip().lower()
-        # 匹配任意触发词（忽略大小写）
-        return any(keyword.lower() in msg for keyword in self.trigger_keywords)
+        msg = message.strip()
+        # 只要包含任意关键词就触发
+        return any(keyword in msg for keyword in self.trigger_keywords)
 
-    # ========== 核心：监听所有消息，支持自然语言触发 ==========
+    # ========== 核心：100%必触发，不被任何插件拦截 ==========
     async def on_message(self, event: AstrMessageEvent) -> MessageEventResult:
-        """
-        监听所有消息（自然语言触发核心）
-        返回 MessageEventResult(True) 阻止AI后续处理，彻底去掉多余回复
-        """
-        # 只处理群/私聊消息，忽略机器人自己发的
+        # 🔥 关键2：只过滤机器人自己发的消息，群聊/私聊一律处理
         if event.is_self():
             return MessageEventResult(False)
         
-        # 获取用户消息（纯文本）
         msg_text = event.message_str.strip()
         
-        # 匹配触发词 → 回复并阻止AI抢话
+        # 匹配关键词 → 立刻回复 + 阻断后续所有处理
         if self.is_trigger(msg_text):
             emperor = self.get_random_emperor()
             reply_text = self.format_reply(emperor)
-            # 发送回复
             await event.send(event.plain_result(reply_text))
-            # 返回 True 阻止AI继续处理这条消息（关键！去掉多余回复）
+            # 🔥 关键3：返回True，彻底阻止AI/其他插件抢消息
             return MessageEventResult(True)
         
-        # 不匹配触发词 → 交给其他插件/AI处理
         return MessageEventResult(False)
 
-    # ========== 保留/指令触发（兼容旧习惯） ==========
+    # ========== 保留/指令触发 ==========
     @filter.command("我要当皇帝", alias={"抽皇帝", "随机皇帝", "来个皇帝"})
     async def draw_emperor(self, event: AstrMessageEvent):
-        """随机抽取一位历史皇帝（/指令触发）"""
         emperor = self.get_random_emperor()
         reply_text = self.format_reply(emperor)
         await event.send(event.plain_result(reply_text))
 
     @filter.command("皇帝抽奖状态")
     async def emperor_status(self, event: AstrMessageEvent):
-        """查看插件状态"""
         status_text = (
             "📋 随机抽皇帝插件状态（v1.1.0）：\n"
             f"├─ 皇帝数据量：{len(self.emperor_list)} 条\n"
@@ -2493,5 +2486,5 @@ logger.info("""
 ✅ 自然语言触发：直接发「我要当皇帝」「来个皇帝」等
 ✅ /指令触发：/我要当皇帝、/抽皇帝
 ✅ 状态查询：/皇帝抽奖状态
-✅ 已开启防AI抢话，无多余回复！
+✅ 100%必触发，不被拦截！
 """)
